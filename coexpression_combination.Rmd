@@ -1,0 +1,171 @@
+
+
+```{r}
+for (pkg in c("matrixStats", "Hmisc", "splines", "foreach", "doParallel", "fastcluster", "dynamicTreeCut", "survival", "BiocManager")) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg)
+  }
+}
+BiocManager::install(c("GO.db", "preprocessCore", "impute"))
+BiocManager::install("WGCNA")
+```
+
+```{r}
+library(WGCNA)
+library(data.table)
+DATA <- "data/"
+sheetfile <- "rnaseq_train.csv"
+rnaseq_train <- data.frame(fread(file.path(DATA, sheetfile)), row.names=1, check.names = FALSE)
+dim(rnaseq_train)
+```
+
+```{r}
+library(WGCNA)
+options(stringsAsFactors = FALSE)
+enableWGCNAThreads()
+```
+
+```{r}
+s = abs(bicor(rnaseq_train))
+```
+
+```{r}
+# Choose a set of soft-thresholding powers
+powers = c(c(1:10), seq(from = 12, to=20, by=2))
+# Call the network topology analysis function
+sft = pickSoftThreshold(rnaseq_train, powerVector = powers, verbose = 5)
+# Plot the results:
+sizeGrWindow(9, 5)
+par(mfrow = c(1,2));
+cex1 = 0.9;
+# Scale-free topology fit index as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+xlab="Soft Threshold (power)",ylab="Scale Free Topology Model Fit,signed R^2",type="n",
+main = paste("Scale independence"));
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+labels=powers,cex=cex1,col="red");
+# this line corresponds to using an R^2 cut-off of h
+abline(h=0.90,col="red")
+# Mean connectivity as a function of the soft-thresholding power
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
+```
+```{r}
+# here we define the adjacency matrix using soft thresholding with beta=6
+ADJ1=abs(cor(rnaseq_train,use="p"))^7
+
+# When you have relatively few genes (<5000) use the following code
+k=as.vector(apply(ADJ1,2,sum, na.rm=T))
+
+# Plot a histogram of k and a scale free topology plot
+sizeGrWindow(10,5)
+par(mfrow=c(1,2))
+hist(k)
+scaleFreePlot(k, main="Check scale free topology\n")
+```
+
+```{r}
+bwnet = blockwiseModules(rnaseq_train,
+power = 9, TOMType = "unsigned", minModuleSize = 2,
+reassignThreshold = 0, mergeCutHeight = 0.25,
+numericLabels = TRUE, saveTOMs = TRUE, 
+saveTOMFileBase = "RNAseqTOM", pamRespectsDendro = FALSE,
+verbose = 3)
+```
+
+```{r}
+me0 <- as.data.frame(bwnet$colors[bwnet$colors==0])
+me1 <- as.data.frame(bwnet$colors[bwnet$colors==1])
+me2 <- as.data.frame(bwnet$colors[bwnet$colors==2])
+me3 <- as.data.frame(bwnet$colors[bwnet$colors==3])
+```
+
+```{r}
+rnaseq_test <- data.frame(fread(file.path(DATA, "rnaseq_test.csv")), row.names=1, check.names = FALSE)
+dim(rnaseq_test)
+rnaseq_test_me1 <- rnaseq_test[,c(rownames(me1))]
+rnaseq_test_me2 <- rnaseq_test[,c(rownames(me2))]
+rnaseq_test_me3 <- rnaseq_test[,c(rownames(me3))]
+```
+
+```{r}
+train_me1 = bwnet$MEs$ME1
+train_me2 = bwnet$MEs$ME2
+train_me3 = bwnet$MEs$ME3
+
+test_me1<- svd(t(rnaseq_test_me1))$v
+test_me2<- svd(t(rnaseq_test_me2))$v
+test_me3<- svd(t(rnaseq_test_me3))$v
+```
+
+```{r}
+train_mean_me1 <- rowMeans(as.data.frame(train_me1), na.rm = FALSE, dims = 1)
+train_mean_me2 <- rowMeans(as.data.frame(train_me2), na.rm = FALSE, dims = 1)
+train_mean_me3 <- rowMeans(as.data.frame(train_me3), na.rm = FALSE, dims = 1)
+head(train_mean_me1)
+head(train_mean_me2)
+head(train_mean_me3)
+```
+
+```{r}
+test_mean_me1 <- rowMeans(as.data.frame(test_me1), na.rm = FALSE, dims = 1)
+test_mean_me2 <- rowMeans(as.data.frame(test_me2), na.rm = FALSE, dims = 1)
+test_mean_me3 <- rowMeans(as.data.frame(test_me3), na.rm = FALSE, dims = 1)
+head(test_mean_me1)
+head(test_mean_me2)
+head(test_mean_me3)
+```
+
+```{r}
+df_mean_me1_train = as.data.frame(train_mean_me1)
+df_mean_me2_train = as.data.frame(train_mean_me2)
+df_mean_me3_train = as.data.frame(train_mean_me3)
+bind_mean_train <- cbind(df_mean_me1_train, df_mean_me2_train, df_mean_me3_train, row.names=rownames(rnaseq_train))
+head(bind_mean_train)
+```
+
+```{r}
+df_mean_me1_test = as.data.frame(test_mean_me1)
+df_mean_me2_test = as.data.frame(test_mean_me2)
+df_mean_me3_test = as.data.frame(test_mean_me3)
+bind_mean_test <- cbind(df_mean_me1_test, df_mean_me2_test, df_mean_me3_test, row.names=rownames(rnaseq_test))
+head(bind_mean_test)
+```
+
+```{r}
+rnaseq_fil_train <- rnaseq_train[,c(rownames(me0))]
+rnaseq_result_train <- cbind(rnaseq_fil_train, bind_mean_train)
+head(rnaseq_result_train)
+```
+
+```{r}
+rnaseq_fil_test <- rnaseq_test[,c(rownames(me0))]
+rnaseq_result_test <- cbind(rnaseq_fil_test, bind_mean_test)
+head(rnaseq_result_test)
+```
+
+```{r}
+#write.table(rnaseq_result_train,'rnaseq_result_train.csv',sep=',')
+#write.table(rnaseq_result_test,'rnaseq_result_test.csv',sep=',')
+```
+
+```{r}
+# open a graphics window
+sizeGrWindow(12, 9)
+# Convert labels to colors for plotting
+mergedColors = labels2colors(bwnet$colors)
+# Plot the dendrogram and the module colors underneath
+plotDendroAndColors(bwnet$dendrograms[[1]], mergedColors[bwnet$blockGenes[[1]]],
+"Module colors",
+dendroLabels = FALSE, hang = 0.03,
+addGuide = TRUE, guideHang = 0.05)
+
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
