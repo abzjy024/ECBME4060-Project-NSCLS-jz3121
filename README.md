@@ -6,7 +6,7 @@ File structure
 
     --data (containing clinical data, RNA seqence data (including data before and after coexpression) and mutation data)
     
-    --coexpression_combination.Rmd (used to do coexpression of RNA sequence data)
+    --coexpression_combination.Rmd (used to do coexpression of RNA sequence data for KNN)
     
     --jg4159_RandomForest (prediction pipeline using Random Forest)
     
