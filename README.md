@@ -1,5 +1,6 @@
-# ECBME4060-Project-NSCLS-jz3121
+# Exploring Different Survival Prediction Methods for NSCLC Patients: K Nearest Neighbors and Random Survival Prediction Model
 
+lung cancer is the most frequent cause of cancer deaths around the world. In order to better predict survival of lung cancer patients , we designed lung cancer survival prediction methods for NSCLC patients based on K nearest neighbors and random survival prediction model.
 
 File structure 
 
