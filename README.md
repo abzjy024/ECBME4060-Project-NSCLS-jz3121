@@ -7,4 +7,6 @@ File structure
     
     --coexpression_combination.Rmd (used to do coexpression of RNA sequence data)
     
+    --jg4159_RandomForest (prediction pipeline using Random Forest)
+    
     --jz3121_KNN.ipynb (prediction pipeline using KNN)
